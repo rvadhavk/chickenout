@@ -1,10 +1,10 @@
 {
-  "name": "Hello Extensions",
-  "description" : "Base Level Extension",
+  "name": "Chicken Out",
+  "description" : "Blocks pictures of chickens",
   "version": "1.0",
   "browser_action": {
-    "default_popup": "hello.html",
-    "default_icon": "hello_extensions.png"
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
   },
   "manifest_version": 2,
   "commands": {
