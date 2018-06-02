@@ -1,4 +1,4 @@
-let observer = new MutationObserver(mutationList => {
+const observer = new MutationObserver(mutationList => {
   const imgs = mutationList.map(mutation => Array.from(mutation.addedNodes))
     .reduce((result, nodeList) => result.concat(nodeList))
     .filter(node => node.nodeName === 'IMG')
@@ -11,21 +11,14 @@ document.addEventListener('load', (event) => {
     return
   }
   const img = event.target
-  const context = canvas.getContext('2d')
-  canvas.width = img.width
-  canvas.height = img.height
-  context.drawImage(img, 0, 0, 224, 224)
-  const bytes = context.getImageData(0, 0, 224, 224).data;
   const request = {
-    data: base64js.fromByteArray(bytes),
-    width: 224,
-    height: 224
+    src: img.src
   }
   chrome.runtime.sendMessage(request, response => {
-    console.log('response')
-    console.log(IMAGENET_CLASSES[response.result])
-    img.setAttribute('prediction', IMAGENET_CLASSES[response.result])
-    if (response.result === 954) {
+    const topClasses = response.topClasses
+    const topClassNames = topClasses.map(classIndex => IMAGENET_CLASSES[classIndex])
+    img.setAttribute('predictions', topClassNames.join("; "))
+    if (topClasses.indexOf(8) === -1 && topClasses.indexOf(7) === -1) {
       img.removeAttribute('chicken-out-blur')
     }
   })
