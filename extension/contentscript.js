@@ -1,26 +1,37 @@
-const observer = new MutationObserver(mutationList => {
+const imgSrcObserver = new MutationObserver(mutationList => {
+  mutationList
+    .map(mutation => mutation.target)
+    .forEach(img => img.setAttribute('chicken-out-blur', ''))
+})
+
+const documentObserver = new MutationObserver(mutationList => {
   const imgs = mutationList.map(mutation => Array.from(mutation.addedNodes))
     .reduce((result, nodeList) => result.concat(nodeList))
     .filter(node => node.nodeName === 'IMG')
   imgs.forEach(img => img.setAttribute('chicken-out-blur', ''))
+  imgs.forEach(img => {imgSrcObserver.observe(img, {attributeFilter: ['src']}); img.setAttribute('has-src-observer', '')})
+  imgs.filter(img => img.complete).forEach(scanImage)
 })
-observer.observe(document, {subtree: true, childList: true})
-const canvas = document.createElement('canvas')
+documentObserver.observe(document, {subtree: true, childList: true})
+
 document.addEventListener('load', (event) => {
   if (event.target.nodeName !== 'IMG') {
     return
   }
-  const img = event.target
+  scanImage(event.target)
+}, true)
+
+function scanImage(img) {
+  const src = img.src
   const request = {
-    src: img.src
+    src: src
   }
   chrome.runtime.sendMessage(request, response => {
     const topClasses = response.topClasses
     const topClassNames = topClasses.map(classIndex => IMAGENET_CLASSES[classIndex])
     img.setAttribute('predictions', topClassNames.join("; "))
-    if (topClasses.indexOf(8) === -1 && topClasses.indexOf(7) === -1) {
+    if (img.src === src && topClasses.indexOf(8) === -1 && topClasses.indexOf(7) === -1) {
       img.removeAttribute('chicken-out-blur')
     }
   })
-}, true)
-
+}
