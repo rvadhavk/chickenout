@@ -9,7 +9,6 @@ const documentObserver = new MutationObserver(mutationList => {
     .reduce((result, nodeList) => result.concat(nodeList))
     .filter(node => node.nodeName === 'IMG')
   imgs.forEach(img => img.setAttribute('chicken-out-blur', ''))
-  imgs.forEach(img => {imgSrcObserver.observe(img, {attributeFilter: ['src']}); img.setAttribute('has-src-observer', '')})
   imgs.filter(img => img.complete).forEach(scanImage)
 })
 documentObserver.observe(document, {subtree: true, childList: true})
