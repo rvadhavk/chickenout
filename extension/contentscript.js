@@ -41,10 +41,8 @@ function scanImage(img) {
     src: src
   }
   chrome.runtime.sendMessage(request, response => {
-    const topClasses = response.topClasses
-    const topClassNames = topClasses.map(classIndex => IMAGENET_CLASSES[classIndex])
-    img.setAttribute('predictions', topClassNames.join("; "))
-    if (img.src === src && topClasses.indexOf(8) === -1 && topClasses.indexOf(7) === -1) {
+    img.setAttribute('chicken-probability', response.chickenProbability)
+    if (response.chickenProbability < 0.8) {
       img.removeAttribute('chicken-out-blur')
     }
   })

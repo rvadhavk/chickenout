@@ -12,12 +12,8 @@ const main = async () => {
         // Normalize the image from [0, 255] to [-1, 1].
         const offset = tf.scalar(127.5);
         const normalized = tensor.sub(offset).div(offset);
-        model.predict(normalized.expandDims()).data().then(logits => {
-          const top5 = Array.from(logits.keys())
-                            .sort((a, b) => logits[b] - logits[a])
-                            .slice(0, 5)
-          sendResponse({topClasses: top5})
-        })
+        const prediction = model.predict(normalized.expandDims())
+        sendResponse({chickenProbability: prediction.get(0, 0)})
       })
     }
     return true

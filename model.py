@@ -1,7 +1,6 @@
 from keras.applications.mobilenet import MobileNet
 from keras.layers import Dense, Dropout, GlobalAveragePooling2D, Reshape
 from keras.models import Model
-
 import tensorflowjs as tfjs
 
 ALPHA = 0.75
