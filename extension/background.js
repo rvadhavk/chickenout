@@ -3,8 +3,8 @@ const main = async () => {
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const img = document.createElement('img')
-    img.width = 224
-    img.height = 224
+    img.width = 128
+    img.height = 128
     img.src = request.src
     img.onload = () => {
       tf.tidy(() => {
