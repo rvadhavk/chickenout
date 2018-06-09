@@ -1,11 +1,12 @@
 from PIL import Image
 import os
 for directory in ('chickens', 'not_chickens'):
-  image_paths = os.listdir(directory)
-  for path in image_paths:
+  img_names  = os.listdir(directory)
+  for img_name in image_names:
+    img_path = os.path.join(directory, img_name)
     try:
-      image = Image.open(path)
+      image = Image.open(img_path)
       image.close()
     except IOError:
-      os.remove(os.path.join(directory, path))
+      os.remove(img_path)
   
