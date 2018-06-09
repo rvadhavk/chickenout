@@ -5,14 +5,8 @@ const imgSrcObserver = new MutationObserver(mutationList => {
 })
 
 function getImgsInTree(root) {
-  // Filter out things like text nodes, which don't have a children property
-  if (!(root instanceof Element)) {
-    return []
-  }
-  const imgs = Array.from(root.children)
-    .map(getImgsInTree)
-    .reduce((result, descendantImgs) => result.concat(descendantImgs), [])
-  if (root.nodeName === 'IMG') {
+  const imgs = Array.from(root.getElementsByTagName('img'))
+  if (root.tagName === 'IMG') {
     imgs.push(root)
   }
   return imgs
@@ -21,6 +15,7 @@ function getImgsInTree(root) {
 const documentObserver = new MutationObserver(mutationList => {
   const imgs = mutationList.map(mutation => Array.from(mutation.addedNodes))
     .reduce((result, nodeList) => result.concat(nodeList), [])
+    .filter(node => node instanceof HTMLElement)
     .map(getImgsInTree)
     .reduce((result, nodeList) => result.concat(nodeList), [])
   imgs.forEach(img => img.setAttribute('chicken-out-blur', ''))
@@ -36,13 +31,16 @@ document.addEventListener('load', (event) => {
 }, true)
 
 function scanImage(img) {
-  const src = img.src
+  if (img.currentSrc === '') {
+    img.removeAttribute('chicken-out-blur')
+    return
+  }
   const request = {
-    src: src
+    src: img.currentSrc
   }
   chrome.runtime.sendMessage(request, response => {
     img.setAttribute('chicken-probability', response.chickenProbability)
-    if (response.chickenProbability < 0.8) {
+    if (request.src === img.currentSrc && response.chickenProbability < 0.95) {
       img.removeAttribute('chicken-out-blur')
     }
   })
