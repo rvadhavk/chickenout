@@ -4,7 +4,7 @@
   "description" : "Blocks pictures of chickens",
   "permissions": ["activeTab", "<all_urls>"],
   "background": {
-    "scripts": ["base64.js", "tf.js", "background.js"],
+    "scripts": ["tf.js", "background.js"],
     "persistent": false
   },
 	"content_scripts": [
@@ -15,7 +15,6 @@
 			],
 			"js": [
         "imagenet_classes.js",
-        "base64.js",
 				"contentscript.js"
 			],
       "css": [
