@@ -26,6 +26,9 @@ const documentObserver = new MutationObserver(mutationList => {
 })
 documentObserver.observe(document, {subtree: true, childList: true})
 
+// Why use document.addEventListener instead of img.onload?
+// Some websites such as Google Image Search have event handlers
+// which prevent load events from propagating down to their targets
 document.addEventListener('load', event => {
   if (event.target.nodeName !== 'IMG') {
     return
@@ -33,18 +36,32 @@ document.addEventListener('load', event => {
   scanImage(event.target)
 }, true)
 
+// Map<String, Array<HTMLImageElement>>
+// Maps src to img elements with that src waiting for a classification.
+// This lets us batch requests to the background page for a given img src.
+const imgsWaitingForClassification = new Map()
+
 function scanImage(img) {
-  if (img.currentSrc === '') {
+  if (img.currentSrc === '' || img.width === 1 || img.height === 1) {
     img.removeAttribute('chicken-out-blur')
     return
   }
-  const request = {
-    src: img.currentSrc
-  }
-  chrome.runtime.sendMessage(request, response => {
-    img.setAttribute('chicken-probability', response.chickenProbability)
-    if (request.src === img.currentSrc && response.chickenProbability < 0.5) {
-      img.removeAttribute('chicken-out-blur')
+  var waiters = imgsWaitingForClassification.get(img.currentSrc) 
+  if (waiters === undefined) {
+    imgsWaitingForClassification.set(img.currentSrc, [img])
+    const request = {
+      src: img.currentSrc
     }
-  })
+    chrome.runtime.sendMessage(request, response => {
+      imgsWaitingForClassification.get(request.src).forEach(img => {
+        img.setAttribute('chicken-probability', response.chickenProbability)
+        if (request.src === img.currentSrc && response.chickenProbability < 0.5) {
+          img.removeAttribute('chicken-out-blur')
+        }
+      })
+      imgsWaitingForClassification.delete(request.src)
+    })
+  } else {
+    waiters.push(img)
+  }
 }
