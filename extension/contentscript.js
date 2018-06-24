@@ -47,21 +47,23 @@ function scanImage(img) {
     return
   }
   var waiters = imgsWaitingForClassification.get(img.currentSrc) 
-  if (waiters === undefined) {
-    imgsWaitingForClassification.set(img.currentSrc, [img])
-    const request = {
-      src: img.currentSrc
-    }
-    chrome.runtime.sendMessage(request, response => {
-      imgsWaitingForClassification.get(request.src).forEach(img => {
-        img.setAttribute('chicken-probability', response.chickenProbability)
-        if (request.src === img.currentSrc && response.chickenProbability < 0.5) {
-          img.removeAttribute('chicken-out-blur')
-        }
-      })
-      imgsWaitingForClassification.delete(request.src)
-    })
-  } else {
+  if (waiters !== undefined) {
+    // Some other image with the same currentSrc is already being classified.
+    // Add this image to the set of imgs waiting for the result.
     waiters.push(img)
+    return
   }
+  imgsWaitingForClassification.set(img.currentSrc, [img])
+  const request = {
+    src: img.currentSrc
+  }
+  chrome.runtime.sendMessage(request, response => {
+    imgsWaitingForClassification.get(request.src).forEach(img => {
+      img.setAttribute('chicken-probability', response.chickenProbability)
+      if (request.src === img.currentSrc && response.chickenProbability < 0.5) {
+        img.removeAttribute('chicken-out-blur')
+      }
+    })
+    imgsWaitingForClassification.delete(request.src)
+  })
 }

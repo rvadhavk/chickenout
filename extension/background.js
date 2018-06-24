@@ -1,6 +1,7 @@
 const modelPromise = tf.loadModel(chrome.extension.getURL('model/model.json'))
 const INPUT_WIDTH = 128
 const INPUT_HEIGHT = 128
+const MAX_CACHE_ENTRIES = 10000
 
 // Create the DB used for caching classification results
 const dbPromise = new Promise((resolve, reject) => {
@@ -8,7 +9,7 @@ const dbPromise = new Promise((resolve, reject) => {
   request.onupgradeneeded = () => {
     const db = request.result
     const store = db.createObjectStore('cache', {keyPath: 'hash'})
-    store.createIndex('lastUseEpochMs', 'lastUseEpochMs')
+    store.createIndex('lastUseTime', 'lastUseTime')
     resolve(db)
   }
   request.onsuccess = () => {
@@ -86,26 +87,35 @@ async function getChickenProbability(src) {
 }
 
 // Cache classification result, potentially evicting other cache entries with an LRU policy.
+// (ImageData, Number) -> Void
 async function cacheStore(imgData, probability) {
   const digest = await crypto.subtle.digest('SHA-256', imgData.data)
   const db = await dbPromise
-  const cachedValue = {hash: digest, probability: probability, updateTime: Date.now()}
+  const cachedValue = {hash: digest, probability: probability, lastUseTime: Date.now()}
   const request = db.transaction('cache', 'readwrite').objectStore('cache').put(cachedValue)
   request.onerror = console.error
+  maybeEvictLeastRecentlyUsed(db)
 }
 
-// Lookup classification result, updating last-use timestamp, if present
+function maybeEvictLeastRecentlyUsed(db) {
+  
+}
+
+// Lookup classification result, updating last-use timestamp, if present.
 async function cacheLookup(imgData) {
   const digest = await crypto.subtle.digest('SHA-256', imgData.data)
   const db = await dbPromise
-  const result = await new Promise((resolve, reject) => {
-    const request = db.transaction('cache').objectStore('cache').get(digest)
+  const objectStore = db.transaction('cache', 'readwrite').objectStore('cache')
+  const cacheEntry = await new Promise((resolve, reject) => {
+    const request = objectStore.get(digest)
     request.onsuccess = () => resolve(request.result)
     request.onerror = reject
   })
-  if (result === undefined) {
+  if (cacheEntry === undefined) {
     return undefined
   }
-  return result.probability
+  cacheEntry.lastUseTime = Date.now() 
+  objectStore.put(cacheEntry)
+  return cacheEntry.probability
 }
 
