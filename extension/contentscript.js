@@ -18,12 +18,15 @@ const documentObserver = new MutationObserver(mutationList => {
     .filter(node => node instanceof HTMLElement)
     .map(getImgsInTree)
     .reduce((result, nodeList) => result.concat(nodeList), [])
-  imgs.forEach(img => img.setAttribute('chicken-out-blur', ''))
+  imgs.forEach(img => {
+    img.setAttribute('chicken-out-blur', '')
+    imgSrcObserver.observe(img, {attributeFilter: ['src']})
+  })
   imgs.filter(img => img.complete).forEach(scanImage)
 })
 documentObserver.observe(document, {subtree: true, childList: true})
 
-document.addEventListener('load', (event) => {
+document.addEventListener('load', event => {
   if (event.target.nodeName !== 'IMG') {
     return
   }
@@ -40,7 +43,7 @@ function scanImage(img) {
   }
   chrome.runtime.sendMessage(request, response => {
     img.setAttribute('chicken-probability', response.chickenProbability)
-    if (request.src === img.currentSrc && response.chickenProbability < 0.95) {
+    if (request.src === img.currentSrc && response.chickenProbability < 0.5) {
       img.removeAttribute('chicken-out-blur')
     }
   })
