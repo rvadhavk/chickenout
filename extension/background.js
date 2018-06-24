@@ -13,11 +13,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return normalized.expandDims()
     })
     modelPromise.then(model => {
-      const prediction = model.predict(batch)
-      const probability = prediction.get(0, 0)
-      batch.dispose()
-      prediction.dispose()
-      sendResponse({chickenProbability: probability})
+      tf.tidy(() => {
+        const prediction = model.predict(batch)
+        const probability = prediction.get(0, 0)
+        sendResponse({chickenProbability: probability})
+      })
     })
   }
   return true
