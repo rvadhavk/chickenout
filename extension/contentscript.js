@@ -1,7 +1,10 @@
 const imgSrcObserver = new MutationObserver(mutationList => {
   mutationList
     .map(mutation => mutation.target)
-    .forEach(img => img.setAttribute('chicken-out-blur', ''))
+    .forEach(img => {
+      img.setAttribute('chicken-out-blur', '')
+      scanImage(img)
+    })
 })
 
 function getImgsInTree(root) {
@@ -20,21 +23,11 @@ const documentObserver = new MutationObserver(mutationList => {
     .reduce((result, nodeList) => result.concat(nodeList), [])
   imgs.forEach(img => {
     img.setAttribute('chicken-out-blur', '')
-    imgSrcObserver.observe(img, {attributeFilter: ['src']})
+    imgSrcObserver.observe(img, {attributes: true, attributeFilter: ['src']})
+    scanImage(img)
   })
-  imgs.filter(img => img.complete).forEach(scanImage)
 })
 documentObserver.observe(document, {subtree: true, childList: true})
-
-// Why use document.addEventListener instead of img.onload?
-// Some websites such as Google Image Search have event handlers
-// which prevent load events from propagating down to their targets
-document.addEventListener('load', event => {
-  if (event.target.nodeName !== 'IMG') {
-    return
-  }
-  scanImage(event.target)
-}, true)
 
 // Map<String, Array<HTMLImageElement>>
 // Maps src to img elements with that src waiting for a classification.
@@ -42,28 +35,33 @@ document.addEventListener('load', event => {
 const imgsWaitingForClassification = new Map()
 
 function scanImage(img) {
-  if (img.currentSrc === '' || img.width === 1 || img.height === 1) {
+  if (img.src === '' || img.width === 1 || img.height === 1) {
     img.removeAttribute('chicken-out-blur')
     return
   }
-  const waiters = imgsWaitingForClassification.get(img.currentSrc)
+  const waiters = imgsWaitingForClassification.get(img.src)
   if (waiters !== undefined) {
-    // Some other image with the same currentSrc is already being classified.
+    // Some other img with the same src is already being classified.
     // Add this image to the set of imgs waiting for the result.
     waiters.push(img)
     return
   }
-  imgsWaitingForClassification.set(img.currentSrc, [img])
+  imgsWaitingForClassification.set(img.src, [img])
   const request = {
-    src: img.currentSrc
+    src: img.src
   }
   chrome.runtime.sendMessage(request, response => {
-    imgsWaitingForClassification.get(request.src).forEach(img => {
-      img.setAttribute('chicken-probability', response.chickenProbability)
-      if (request.src === img.currentSrc && response.chickenProbability < 0.5) {
-        img.removeAttribute('chicken-out-blur')
+    for (let img of imgsWaitingForClassification.get(request.src)) {
+      if (request.src !== img.src) {
+        continue
       }
-    })
+      img.setAttribute('chicken-probability', response.chickenProbability)
+      if (response.chickenProbability < 0.5) {
+        img.removeAttribute('chicken-out-blur')
+      } else {
+        img.setAttribute('chicken-out-blur', '')
+      }
+    }
     imgsWaitingForClassification.delete(request.src)
   })
 }
