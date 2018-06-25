@@ -1,9 +1,9 @@
 const modelPromise = tf.loadModel(chrome.extension.getURL('model/model.json'))
 const INPUT_WIDTH = 128
 const INPUT_HEIGHT = 128
-const MAX_CACHE_ENTRIES = 10000
+const MAX_CACHE_ENTRIES = 1e5
 
-// Create the DB used for caching classification results
+// The DB used for caching classification results
 const dbPromise = new Promise((resolve, reject) => {
   const request = indexedDB.open('cache')
   request.onupgradeneeded = () => {
@@ -12,9 +12,7 @@ const dbPromise = new Promise((resolve, reject) => {
     store.createIndex('lastUseTime', 'lastUseTime')
     resolve(db)
   }
-  request.onsuccess = () => {
-    resolve(request.result)
-  }
+  request.onsuccess = () => resolve(request.result)
   request.onerror = reject
 })
 
@@ -92,13 +90,34 @@ async function cacheStore(imgData, probability) {
   const digest = await crypto.subtle.digest('SHA-256', imgData.data)
   const db = await dbPromise
   const cachedValue = {hash: digest, probability: probability, lastUseTime: Date.now()}
-  const request = db.transaction('cache', 'readwrite').objectStore('cache').put(cachedValue)
+  const request = db.transaction('cache', 'readwrite')
+    .objectStore('cache')
+    .put(cachedValue)
   request.onerror = console.error
   maybeEvictLeastRecentlyUsed(db)
 }
 
-function maybeEvictLeastRecentlyUsed(db) {
-  
+async function maybeEvictLeastRecentlyUsed(db) {
+  // Get number of cache entries
+  const objectStore = db.transaction('cache', 'readwrite').objectStore('cache')
+  const index = objectStore.index('lastUseTime')
+  const request = index.count()
+  request.onsuccess = () => {
+    const count = request.result
+    if (count < MAX_CACHE_ENTRIES) {
+      return
+    }
+    const oldestRequest = index.getAllKeys(null, Math.floor(count / 4))
+    // TODO: Maybe don't use a loop to delete.
+    // Can use an integer primary key and reinsert instead of in-place updating entries.
+    // That way, IDBKeyRange can be used on the object store to batch delete.
+    oldestRequest.onsuccess = () => {
+      const keys = oldestRequest.result
+      keys.forEach(key => objectStore.delete(key))
+    }
+    oldestRequest.onerror = console.error
+  }
+  request.onerror = console.error
 }
 
 // Lookup classification result, updating last-use timestamp, if present.
@@ -114,7 +133,7 @@ async function cacheLookup(imgData) {
   if (cacheEntry === undefined) {
     return undefined
   }
-  cacheEntry.lastUseTime = Date.now() 
+  cacheEntry.lastUseTime = Date.now()
   objectStore.put(cacheEntry)
   return cacheEntry.probability
 }

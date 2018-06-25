@@ -46,7 +46,7 @@ function scanImage(img) {
     img.removeAttribute('chicken-out-blur')
     return
   }
-  var waiters = imgsWaitingForClassification.get(img.currentSrc) 
+  const waiters = imgsWaitingForClassification.get(img.currentSrc)
   if (waiters !== undefined) {
     // Some other image with the same currentSrc is already being classified.
     // Add this image to the set of imgs waiting for the result.
